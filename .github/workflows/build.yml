@@ -47,6 +47,8 @@ jobs:
     steps:
       - name: Checkout Push to Registry action
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup environment variables
         id: setup-env-vars
