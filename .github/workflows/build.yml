@@ -90,7 +90,7 @@ jobs:
         with:
           containerfiles: |
             ./core/Containerfile
-          context: ./core
+          context: .
           image: ${{ github.event.repository.name }}
           tags: |
             ${{ steps.generate-image-tags.outputs.alias_tags }}
