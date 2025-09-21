@@ -98,6 +98,7 @@ jobs:
             BASE_IMAGE=${{ env.BASE_IMAGE }}
             BASE_IMAGE_TAG=${{ env.BASE_IMAGE_TAG }}
             MACHINE=${{ env.MACHINE }}
+            ROOT=core
 
           labels: ${{ steps.define-image-metadata.outputs.labels }}
           oci: false
