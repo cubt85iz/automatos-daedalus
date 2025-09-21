@@ -1,3 +1,4 @@
+# Builds the image for the repository.
 [linux]
 build:
   #!/usr/bin/env bash
@@ -17,3 +18,8 @@ build:
     --build-arg ROOT="$ROOT" \
     -f core/Containerfile \
     .
+
+# Updates the submodule for automatos.
+update:
+  @git submodule update --remote core
+
