@@ -36,6 +36,7 @@
       "pipewire-libs-extra",
       "pipewire-plugin-libcamera",
       "powerstat",
+      "https://proton.me/download/mail/linux/ProtonMail-desktop-beta.rpm",
       "steam-devices",
       "symlinks",
       "tmux",
