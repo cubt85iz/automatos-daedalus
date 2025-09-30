@@ -2,12 +2,6 @@
   "base_image": "quay.io/fedora-ostree-desktops/silverblue",
   "base_image_tag": "42",
   "description": "A laptop image derived from Fedora Silverblue.",
-  "dotfiles": [
-    {
-      "user": "philip",
-      "repo": "https://github.com/cubt85iz/dotfiles.git"
-    }
-  ],
   "github_releases": [
     {
       "project": "twpayne/chezmoi",
