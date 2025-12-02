@@ -71,7 +71,8 @@
           "libavcodec-free",
           "libavformat-free",
           "libavfilter-free",
-          "libavdevice-free" 
+          "libavdevice-free",
+          "xevd-libs"
         ],
         "replace": "ffmpeg-libs"
       },
