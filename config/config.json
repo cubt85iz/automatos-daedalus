@@ -1,6 +1,6 @@
 {
   "base_image": "quay.io/fedora-ostree-desktops/silverblue",
-  "base_image_tag": "42",
+  "base_image_tag": "43",
   "description": "A laptop image derived from Fedora Silverblue.",
   "github_releases": [
     {

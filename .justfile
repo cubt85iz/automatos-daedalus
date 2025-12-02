@@ -5,19 +5,32 @@ build:
 
   set -euxo pipefail
 
-  BASE_IMAGE=$(jq -r '.base_image' .config/daedalus)
-  BASE_IMAGE_TAG=$(jq -r '.base_image_tag' .config/daedalus)
-  MACHINE="daedalus"
+  # Grab values from config.json
+  BASE_IMAGE=$(jq -r '.base_image' config/config.json)
+  BASE_IMAGE_TAG=$(jq -r '.base_image_tag' config/config.json)
+
+  # Set default values
+  BASE_IMAGE=${BASE_IMAGE:-}
+  BASE_IMAGE_TAG=${BASE_IMAGE_TAG:-}
   ROOT="core"
 
-  podman build \
-    -t automatos-$MACHINE:latest \
-    --build-arg BASE_IMAGE="$BASE_IMAGE" \
-    --build-arg BASE_IMAGE_TAG="$BASE_IMAGE_TAG" \
-    --build-arg MACHINE="$MACHINE" \
-    --build-arg ROOT="$ROOT" \
-    -f core/Containerfile \
-    .
+  if [ -n "$BASE_IMAGE" ]; then
+    if [ -n "$BASE_IMAGE_TAG" ]; then
+      podman build \
+        -t automatos-cyclops:latest \
+        --build-arg BASE_IMAGE="$BASE_IMAGE" \
+        --build-arg BASE_IMAGE_TAG="$BASE_IMAGE_TAG" \
+        --build-arg ROOT="$ROOT" \
+        -f $ROOT/Containerfile \
+        .
+    else
+      echo "ERROR: A value for base_image_tag must be provided in config.json file."
+      exit 1
+    fi
+  else
+      echo "ERROR: A value for base_image must be provided in config.json file."
+      exit 1
+  fi
 
 # Updates the submodule for automatos.
 update:
