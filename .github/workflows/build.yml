@@ -15,7 +15,7 @@ env:
 jobs:
   build:
     name: Build and push image
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     if: always() && !cancelled()
     permissions:
       contents: read
@@ -54,8 +54,7 @@ jobs:
             ${{ github.event.repository.name }}
           labels: |
             io.artifacthub.package.readme-url=https://raw.githubusercontent.com/cubt85iz/${{ github.event.repository.name }}/main/README.md
-            org.opencontainers.image.description="${{ env.DESCRIPTION }}"
-            org.opencontainers.image.source = "https://github.com/cubt85iz/automatos-daedalus"
+            org.opencontainers.image.description=${{ env.DESCRIPTION }}
             org.opencontainers.image.title=${{ github.event.repository.name }}
             org.opencontainers.image.version=${{ env.DATE }}
 
