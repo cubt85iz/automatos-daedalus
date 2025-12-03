@@ -30,7 +30,7 @@
       "libheif",
       "libva-utils",
       "lshw",
-      "mesa-libxatracker",
+      "mesa-compat-libxatracker",
       "net-tools",
       "openssl",
       "pipewire-libs-extra",
