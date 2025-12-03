@@ -52,33 +52,6 @@
       },
       {
         "remove": [
-          "fdk-aac-free"
-        ],
-        "replace": "libfdk-aac"
-      },
-      {
-        "remove": [
-          "ffmpeg-free"
-        ],
-        "replace": "ffmpeg"
-      },
-      {
-        "remove": [
-          "libavutil-free",
-          "libswresample-free",
-          "libswscale-free", 
-          "libpostproc-free",
-          "libavcodec-free",
-          "libavformat-free",
-          "libavfilter-free",
-          "libavdevice-free",
-          "xevd-libs",
-          "xeve-libs"
-        ],
-        "replace": "ffmpeg-libs"
-      },
-      {
-        "remove": [
           "gstreamer1-plugins-bad-free",
           "gstreamer1-plugins-bad-free-libs"
         ],
