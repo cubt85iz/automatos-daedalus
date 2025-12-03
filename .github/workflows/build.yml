@@ -13,10 +13,31 @@ env:
   IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
 
 jobs:
+  fcos_version:
+    name: Get Fedora CoreOS Version
+    runs-on: ubuntu-latest
+    outputs:
+      stable_version: ${{ steps.stable.outputs.version }}
+    steps:
+      - name: Fetch CoreOS stable versions
+        id: stable
+        run: |
+          set -xeuo pipefail
+
+          # Get version for container image
+          version=$(skopeo inspect docker://quay.io/fedora/fedora-coreos:stable | \
+            jq -r '.Labels["org.opencontainers.image.version"]')
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Echo outputs
+        run: |
+          echo "${{ toJSON(steps.stable.outputs) }}"
+          
   build:
     name: Build and push image
     runs-on: ubuntu-latest
     if: always() && !cancelled()
+    needs: [fcos_version]
     permissions:
       contents: read
       packages: write
@@ -43,6 +64,12 @@ jobs:
           echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
           DATE="$(echo ${TIMESTAMP} | cut -d '-' -f 1)"
           echo "DATE=$DATE" >> $GITHUB_ENV
+
+          # Get major version for container image
+          MAJOR_VERSION="$(echo ${{ needs.fcos_version.outputs.stable_version }} | cut -d '.' -f 1)"
+          echo "MAJOR_VERSION=$MAJOR_VERSION" >> $GITHUB_ENV
+
+          BUILD_TAGS=( "latest" "${TIMESTAMP}" "${MAJOR_VERSION}" "${MAJOR_VERSION}.${DATE}")
           BUILD_TAGS=( "latest" "${TIMESTAMP}" "${DATE}")
           echo "alias_tags=${BUILD_TAGS[*]}" >> $GITHUB_OUTPUT
 
@@ -56,7 +83,7 @@ jobs:
             io.artifacthub.package.readme-url=https://raw.githubusercontent.com/cubt85iz/${{ github.event.repository.name }}/main/README.md
             org.opencontainers.image.description=${{ env.DESCRIPTION }}
             org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.version=${{ env.DATE }}
+            org.opencontainers.image.version=${{ env.MAJOR_VERSION }}.${{ env.DATE }}
 
       - name: Build Image
         id: build_image
