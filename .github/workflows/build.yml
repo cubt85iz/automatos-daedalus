@@ -47,7 +47,7 @@ jobs:
 
             # Output parsed values
             echo "base_image=$BASE_IMAGE" >> $GITHUB_OUTPUT
-            echo "base_image_tag=$BASE_IMAGE_TAG" >> $GITHUB_OUTPUT
+            echo "base_image_tag=$BASE_IMAGE_TAG" >> $GITHUB_OUTPUTs
 
             echo "Config loaded from $CONFIG_FILE"
           else
@@ -61,7 +61,7 @@ jobs:
           set -euxo pipefail
 
           # No stable tag. Stable considered penultimate major version.
-          STABLE_REPO="quay.io/fedora-ostree-desktops/silverblue:stable"
+          STABLE_REPO="quay.io/fedora-ostree-desktops/silverblue"
           STABLE_MAJOR=$(skopeo inspect docker://$STABLE_REPO | \
             jq -r '.Tags[]' | grep -P '^\d{2}$' | sort -V | tail -n 2 | \
             head -n 1)
