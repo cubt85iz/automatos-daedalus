@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euxo pipefail
 
-          CONFIG_FILE="config/config.json"
+          CONFIG_FILE="config/daedalus"
           if [ -f "$CONFIG_FILE" ]; then
             # Read values from configuration.
             BASE_IMAGE=$(jq -r '.base_image' $CONFIG_FILE)
@@ -124,6 +124,7 @@ jobs:
           build-args: |
             BASE_IMAGE=${{ steps.load-config.outputs.base_image }}
             BASE_IMAGE_TAG=${{ steps.load-config.outputs.base_image_tag }}
+            MACHINE=daedalus
             ROOT=core
           labels: ${{ steps.define-image-metadata.outputs.labels }}
           oci: false
