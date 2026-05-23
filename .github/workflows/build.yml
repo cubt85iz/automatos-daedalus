@@ -62,7 +62,7 @@ jobs:
 
           # No stable tag. Stable considered penultimate major version.
           STABLE_REPO="quay.io/fedora-ostree-desktops/silverblue"
-          STABLE_MAJOR=$(skopeo inspect docker://$STABLE_REPO | \
+          STABLE_MAJOR=$(skopeo list-tags docker://$STABLE_REPO | \
             jq -r '.Tags[]' | grep -P '^\d{2}$' | sort -V | tail -n 2 | \
             head -n 1)
 
