@@ -39,7 +39,7 @@ jobs:
         run: |
           set -euxo pipefail
 
-          CONFIG_FILE="config/daedalus"
+          CONFIG_FILE="config/config.json"
           if [ -f "$CONFIG_FILE" ]; then
             # Read values from configuration.
             BASE_IMAGE=$(jq -r '.base_image' $CONFIG_FILE)
