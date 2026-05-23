@@ -124,7 +124,6 @@ jobs:
           build-args: |
             BASE_IMAGE=${{ steps.load-config.outputs.base_image }}
             BASE_IMAGE_TAG=${{ steps.load-config.outputs.base_image_tag }}
-            MACHINE=daedalus
             ROOT=core
           labels: ${{ steps.define-image-metadata.outputs.labels }}
           oci: false
