@@ -1,91 +1,118 @@
-name: build
+name: Build Fedora Silverblue
+
 on:
-  schedule:
-    - cron: "45 00 * * 3"
   push:
-    branches:
-      - main
     paths-ignore:
       - "**.md"
+  schedule:
+    - cron: "45 00 * * 3"
   workflow_dispatch:
 
-env:
-  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
-
 jobs:
-  fcos_version:
-    name: Get Fedora CoreOS Version
-    runs-on: ubuntu-latest
-    outputs:
-      stable_version: ${{ steps.stable.outputs.version }}
-    steps:
-      - name: Fetch CoreOS stable versions
-        id: stable
-        run: |
-          set -xeuo pipefail
-
-          # Get version for container image
-          version=$(skopeo inspect docker://quay.io/fedora/fedora-coreos:stable | \
-            jq -r '.Labels["org.opencontainers.image.version"]')
-          echo "version=$version" >> $GITHUB_OUTPUT
-
-      - name: Echo outputs
-        run: |
-          echo "${{ toJSON(steps.stable.outputs) }}"
-          
   build:
-    name: Build and push image
     runs-on: ubuntu-latest
-    if: always() && !cancelled()
-    needs: [fcos_version]
     permissions:
       contents: read
       packages: write
       id-token: write
     steps:
-      - name: Checkout Push to Registry action
-        uses: actions/checkout@v4
+      - id: checkout-code
+        name: Checkout Code
+        uses: actions/checkout@v6
         with:
           submodules: recursive
 
-      - name: Setup environment variables
-        id: setup-env-vars
-        shell: bash
+      - id: install-cosign
+        name: Install cosign
+        uses: sigstore/cosign-installer@v3.5.0
+
+      - id: log-into-ghcr
+        name: Log into Github Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: load-config
+        name: Load Config
         run: |
-          echo "BASE_IMAGE=$(jq -r '.base_image' config/config.json)" >> $GITHUB_ENV
-          echo "BASE_IMAGE_TAG=$(jq -r '.base_image_tag' config/config.json)" >> $GITHUB_ENV
-          echo "DESCRIPTION=$(jq -r '.description' config/config.json)" >> $GITHUB_ENV
+          set -euxo pipefail
 
-      - name: Generate image tags
-        id: generate-image-tags
-        shell: bash
+          CONFIG_FILE="config/config.json"
+          if [ -f "$CONFIG_FILE" ]; then
+            # Read values from configuration.
+            BASE_IMAGE=$(jq -r '.base_image' $CONFIG_FILE)
+            BASE_IMAGE_TAG=$(jq -r '.base_image_tag' $CONFIG_FILE)
+
+            # Output parsed values
+            echo "base_image=$BASE_IMAGE" >> $GITHUB_OUTPUT
+            echo "base_image_tag=$BASE_IMAGE_TAG" >> $GITHUB_OUTPUT
+
+            echo "Config loaded from $CONFIG_FILE"
+          else
+            echo "Error: $CONFIG_FILE not found."
+          fi
+
+      - id: check-stable
+        name: Check Stable Version
+        continue-on-error: true
         run: |
-          TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
-          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
-          DATE="$(echo ${TIMESTAMP} | cut -d '-' -f 1)"
-          echo "DATE=$DATE" >> $GITHUB_ENV
+          set -euxo pipefail
 
-          # Get major version for container image
-          MAJOR_VERSION="$(echo ${{ needs.fcos_version.outputs.stable_version }} | cut -d '.' -f 1)"
-          echo "MAJOR_VERSION=$MAJOR_VERSION" >> $GITHUB_ENV
+          # No stable tag. Stable considered penultimate major version.
+          STABLE_REPO="quay.io/fedora-ostree-desktops/silverblue:stable"
+          STABLE_MAJOR=$(skopeo inspect docker://$STABLE_REPO | \
+            jq -r '.Tags[]' | grep -P '^\d{2}$' | sort -V | tail -n 2 | \
+            head -n 1)
 
-          BUILD_TAGS=( "latest" "${TIMESTAMP}" "${MAJOR_VERSION}" "${MAJOR_VERSION}.${DATE}")
-          echo "alias_tags=${BUILD_TAGS[*]}" >> $GITHUB_OUTPUT
+          # Compare to base_image_tag from configuration.
+          FEDORA_VERSION=${{ steps.load-config.outputs.base_image_tag }}
+          if [ "$STABLE_MAJOR" -gt "$FEDORA_VERSION" ]; then
+            echo "::warning:: The 'stable' image ($STABLE_VERSION) is newer than the configured FEDORA_VERSION ($FEDORA_VERSION)!"
+            exit 1
+          fi
 
-      - name: Define Image Metadata
-        id: define-image-metadata
-        uses: docker/metadata-action@v5
+      - id: generate-tags
+        name: Generate Image Tags
+        run: |
+          set -euxo pipefail
+
+          TIMESTAMP=$(date +%Y%m%d%H%M)
+          BRANCH_NAME="${{ github.ref_name }}"
+          FEDORA_VERSION=${{ steps.load-config.outputs.base_image_tag }}
+          TAGS=()
+
+          if [ "$BRANCH_NAME" = "main" ]; then
+            TAGS+=("latest")
+            TAGS+=("$FEDORA_VERSION.$TIMESTAMP")
+            TAGS+=("$FEDORA_VERSION")
+          else
+            TAGS+=("$BRANCH_NAME")
+            TAGS+=("$BRANCH_NAME-$FEDORA_VERSION.$TIMESTAMP")
+            TAGS+=("$BRANCH_NAME-$FEDORA_VERSION")
+          fi
+          TAG_STRING="${TAGS[*]}"
+
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "IMAGE_TAGS=$TAG_STRING" >> $GITHUB_OUTPUT
+          echo "Generated Tags: $TAG_STRING"
+
+      - id: define-image-metadata
+        name: Define Image Metadata
+        uses: docker/metadata-action@v6
         with:
           images: |
             ${{ github.event.repository.name }}
           labels: |
-            io.artifacthub.package.readme-url=https://raw.githubusercontent.com/cubt85iz/${{ github.event.repository.name }}/main/README.md
-            org.opencontainers.image.description=${{ env.DESCRIPTION }}
-            org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.version=${{ env.MAJOR_VERSION }}.${{ env.DATE }}
+            io.artifacthub.package.readme-url="https://${{ github.repository }}/blob/${{ github.ref_name }}/README.md"
+            org.opencontainers.image.description="An image derived from Fedora CoreOS ${{ steps.load-config.outputs.base_image_tag }} for the ${{ github.event.repository.name }} project"
+            org.opencontainers.image.source="https://github.com/${{ github.repository }}"
+            org.opencontainers.image.title="${{ github.event.repository.name }}"
+            org.opencontainers.image.version="${{ steps.load-config.outputs.base_image_tag }}.${{ steps.generate-tags.outputs.TIMESTAMP }}"
 
-      - name: Build Image
-        id: build_image
+      - id: build-image
+        name: Build Image
         uses: redhat-actions/buildah-build@v2
         with:
           containerfiles: |
@@ -93,53 +120,30 @@ jobs:
           context: .
           image: ${{ github.event.repository.name }}
           tags: |
-            ${{ steps.generate-image-tags.outputs.alias_tags }}
+            ${{ steps.generate-tags.outputs.IMAGE_TAGS }}
           build-args: |
-            BASE_IMAGE=${{ env.BASE_IMAGE }}
-            BASE_IMAGE_TAG=${{ env.BASE_IMAGE_TAG }}
+            BASE_IMAGE=${{ steps.load-config.outputs.base_image }}
+            BASE_IMAGE_TAG=${{ steps.load-config.outputs.base_image_tag }}
             ROOT=core
-
           labels: ${{ steps.define-image-metadata.outputs.labels }}
           oci: false
 
-      # Push the image to GHCR (Image Registry)
-      - name: Push To GHCR
+      - id: push-to-registry
+        name: Push to Registry
         uses: redhat-actions/push-to-registry@v2
-        id: push
-        env:
-          REGISTRY_USER: ${{ github.actor }}
-          REGISTRY_PASSWORD: ${{ github.token }}
         with:
-          image: ${{ steps.build_image.outputs.image }}
-          tags: ${{ steps.build_image.outputs.tags }}
-          registry: ${{ env.IMAGE_REGISTRY }}
-          username: ${{ env.REGISTRY_USER }}
-          password: ${{ env.REGISTRY_PASSWORD }}
+          image: ${{ steps.build-image.outputs.image }}
+          tags: ${{ steps.build-image.outputs.tags }}
+          registry: ghcr.io/${{ github.repository_owner }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
           extra-args: |
             --disable-content-trust
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        if: github.event_name != 'pull_request'
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Sign container
-      - uses: sigstore/cosign-installer@v3.2.0
-        if: github.event_name != 'pull_request'
-
-      - name: Sign container image
-        if: github.event_name != 'pull_request'
+      - id: sign-image
+        name: Sign Image
         run: |
-          cosign sign -y --key env://COSIGN_PRIVATE_KEY ${{ env.IMAGE_REGISTRY }}/${{ steps.build_image.outputs.image }}@${TAGS}
-        env:
-          TAGS: ${{ steps.push.outputs.digest }}
-          COSIGN_EXPERIMENTAL: false
-          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          set -euxo pipefail
 
-      - name: Echo outputs
-        #if: github.event_name != 'pull_request'
-        run: |
-          echo "${{ toJSON(steps.push.outputs) }}"
+          # Sign the image digest.
+          cosign sign --yes ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}@${{ steps.push-to-registry.outputs.digest }}
